@@ -1,5 +1,5 @@
 import tensorflow as tf
-from .tf_hacks import eye
+from .tf_hacks import eye, vec_to_tri
 
 
 def gauss_kl_white(q_mu, q_sqrt, num_latent):
@@ -22,12 +22,13 @@ def gauss_kl_white(q_mu, q_sqrt, num_latent):
         the columns of q_mu and the last dim of q_sqrt).
     """
     KL = 0.5 * tf.reduce_sum(tf.square(q_mu))  # Mahalanobis term
-    KL += -0.5 * tf.cast(tf.shape(q_sqrt)[0] * num_latent, tf.float64)
     for d in range(num_latent):
-        Lq = tf.batch_matrix_band_part(q_sqrt[:, :, d], -1, 0)
+        # Lq = tf.batch_matrix_band_part(q_sqrt[:, :, d], -1, 0)
+        Lq = vec_to_tri(q_sqrt[:, :, d])[0, :, :]
         # Log determinant of q covariance:
         KL -= 0.5 * tf.reduce_sum(tf.log(tf.square(tf.diag_part(Lq))))
         KL += 0.5 * tf.reduce_sum(tf.square(Lq))  # Trace term.
+    KL += -0.5 * tf.cast(tf.shape(Lq)[0] * num_latent, tf.float64)
     return KL
 
 
@@ -114,16 +115,18 @@ def gauss_kl(q_mu, q_sqrt, K, num_latent):
     num_latent is an integer: the number of independent distributions (equal to
         the columns of q_mu and the last dim of q_sqrt).
     """
+    # TODO: Update docs, this now assumes q_sqrt is a triangular packed matrix.
     L = tf.cholesky(K)
     alpha = tf.matrix_triangular_solve(L, q_mu, lower=True)
     KL = 0.5 * tf.reduce_sum(tf.square(alpha))  # Mahalanobis term.
     KL += num_latent * 0.5 * tf.reduce_sum(
         tf.log(tf.square(tf.diag_part(L))))  # Prior log-det term.
-    KL += -0.5 * tf.cast(tf.shape(q_sqrt)[0] * num_latent, tf.float64)
     for d in range(num_latent):
-        Lq = tf.batch_matrix_band_part(q_sqrt[:, :, d], -1, 0)
+        # Lq = tf.batch_matrix_band_part(q_sqrt[:, :, d], -1, 0)  # Old, assuming square in q_sqrt
+        Lq = vec_to_tri(q_sqrt[:, :, d])[0, :, :]
         # Log determinant of q covariance:
         KL += -0.5*tf.reduce_sum(tf.log(tf.square(tf.diag_part(Lq))))
         LiLq = tf.matrix_triangular_solve(L, Lq, lower=True)
         KL += 0.5 * tf.reduce_sum(tf.square(LiLq))  # Trace term
+    KL += -0.5 * tf.cast(tf.shape(Lq)[0] * num_latent, tf.float64)
     return KL

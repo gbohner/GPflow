@@ -85,8 +85,8 @@ class SVGP(GPModel):
             self.q_sqrt = Param(np.ones((self.num_inducing, self.num_latent)),
                                 transforms.positive)
         else:
-            q_sqrt = np.array([np.eye(self.num_inducing)
-                               for _ in range(self.num_latent)]).swapaxes(0, 2)
+            q_sqrt = np.rollaxis(np.array([[np.eye(self.num_inducing)[np.tril_indices(self.num_inducing, 0)]]
+                                 for _ in range(self.num_latent)]), 0, 3)
             self.q_sqrt = Param(q_sqrt)
 
     def build_prior_KL(self):

@@ -1,4 +1,4 @@
-from .tf_hacks import eye
+from .tf_hacks import eye, vec_to_tri
 import tensorflow as tf
 
 
@@ -43,6 +43,7 @@ def conditional(Xnew, X, kern, f, num_columns,
         gaussian_gp_predict_whitened
 
     """
+    # TODO: Update documentation
 
     # compute kernel stuff
     num_data = tf.shape(X)[0]
@@ -74,6 +75,9 @@ def conditional(Xnew, X, kern, f, num_columns,
         for d in range(num_columns):
             if q_sqrt.get_shape().ndims == 2:
                 LTA = A * q_sqrt[:, d:d + 1]
+            elif (q_sqrt.get_shape().ndims == 3) and (q_sqrt.get_shape()[0] == 1):
+                L = vec_to_tri(q_sqrt[:, :, d])[0, :, :]
+                LTA = tf.matmul(tf.transpose(L), A)
             elif q_sqrt.get_shape().ndims == 3:
                 L = tf.batch_matrix_band_part(q_sqrt[:, :, d], -1, 0)
                 LTA = tf.matmul(tf.transpose(L), A)
